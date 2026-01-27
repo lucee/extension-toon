@@ -84,6 +84,7 @@ Example comparison:
 ## Known Issues
 
 - **Circular references not supported** - Data structures with circular references will cause a StackOverflowError. This is due to a [bug in json-io's ToonWriter](https://github.com/jdereg/json-io) where cycle detection is not applied to Map/Collection types.
+- **Currently only for Lucee 7.1.0.21+** due to [OSGI tech debt](https://luceeserver.atlassian.net/browse/LDEV-6044), only fixed in 7.1 
 
 ## Dependencies
 
