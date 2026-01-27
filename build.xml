@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project default="clean" basedir="." name="toon-extension">
+	<description>
+		Build TOON Extension
+	</description>
+
+	<property name="src" location="source/java/src"/>
+	<property name="srcImg" location="source/images"/>
+	<property name="srcFld" location="source/fld"/>
+	<property name="temp" location="temp"/>
+	<property name="build" location="build"/>
+	<property name="dist" location="target"/>
+
+	<!-- Default maven goal if not specified -->
+	<property name="maven.goal" value="install"/>
+
+	<!-- Default empty credentials for local builds -->
+	<property name="maven.username" value=""/>
+	<property name="maven.password" value=""/>
+	<property name="gpg.passphrase" value=""/>
+
+	<target name="init">
+		<tstamp/>
+		<delete dir="${temp}"/>
+		<delete dir="${dist}"/>
+		<mkdir dir="${temp}"/>
+		<mkdir dir="${build}"/>
+		<mkdir dir="${dist}/"/>
+	</target>
+
+	<target name="maven-build" depends="init">
+		<condition property="is.deploy" value="true" else="false">
+			<equals arg1="${maven.goal}" arg2="deploy"/>
+		</condition>
+
+		<!-- Check if artifact already exists in Maven Central -->
+		<condition property="artifact.exists">
+			<and>
+				<equals arg1="${is.deploy}" arg2="true"/>
+				<http url="https://repo1.maven.org/maven2/${mvnGroupPath}/${mvnArtifactId}/${bundleversion}/${mvnArtifactId}-${bundleversion}.pom"/>
+			</and>
+		</condition>
+
+		<!-- Set effective goal based on whether artifact exists -->
+		<condition property="effective.goal" value="install" else="${maven.goal}">
+			<equals arg1="${artifact.exists}" arg2="true"/>
+		</condition>
+
+		<echo>goal:${maven.goal}</echo>
+		<echo>effective.goal:${effective.goal}</echo>
+		<echo>performRelease:${is.deploy}</echo>
+		<echo>groupId:${mvnGroupId}</echo>
+		<echo>groupPath:${mvnGroupPath}</echo>
+		<echo>artifactId:${mvnArtifactId}</echo>
+		<echo>bundleversion:${bundleversion}</echo>
+
+		<exec dir="source/java" executable="cmd" osfamily="windows" failonerror="true">
+			<arg value="/c"/>
+			<arg value="mvn"/>
+			<arg value="clean"/>
+			<arg value="${effective.goal}"/>
+			<arg value="-Drevision=${bundleversion}"/>
+			<arg value="-DperformRelease=${is.deploy}"/>
+			<arg value="-e"/>
+			<arg value="--settings"/>
+			<arg value="maven-settings.xml"/>
+			<arg value="-Dmaven.username=${maven.username}"/>
+			<arg value="-Dmaven.password=${maven.password}"/>
+			<arg value="-Dgpg.passphrase=${gpg.passphrase}"/>
+		</exec>
+		<exec dir="source/java" executable="mvn" osfamily="unix" failonerror="true">
+			<arg value="clean"/>
+			<arg value="${effective.goal}"/>
+			<arg value="-Drevision=${bundleversion}"/>
+			<arg value="-DperformRelease=${is.deploy}"/>
+			<arg value="-e"/>
+			<arg value="--settings"/>
+			<arg value="maven-settings.xml"/>
+			<arg value="-Dmaven.username=${maven.username}"/>
+			<arg value="-Dmaven.password=${maven.password}"/>
+			<arg value="-Dgpg.passphrase=${gpg.passphrase}"/>
+		</exec>
+
+		<echo message="Maven output: ${maven.output}"/>
+		<echo message="Maven error: ${maven.error}"/>
+
+		<!-- Now copy dependencies -->
+		<exec dir="source/java" executable="cmd" osfamily="windows" failonerror="true">
+			<arg value="/c"/>
+			<arg value="mvn"/>
+			<arg value="-DoutputDirectory=${temp}/dependency"/>
+			<arg value="-Dmdep.copyPom=true"/>
+			<arg value="-Dmdep.useRepositoryLayout=true"/>
+			<arg value="-DexcludeScope=provided"/>
+			<arg value="-Drevision=${bundleversion}"/>
+			<arg value="dependency:copy-dependencies"/>
+		</exec>
+		<exec dir="source/java" executable="mvn" osfamily="unix" failonerror="true">
+			<arg value="-DoutputDirectory=${temp}/dependency"/>
+			<arg value="-Dmdep.copyPom=true"/>
+			<arg value="-Dmdep.useRepositoryLayout=true"/>
+			<arg value="-DexcludeScope=provided"/>
+			<arg value="-Drevision=${bundleversion}"/>
+			<arg value="dependency:copy-dependencies"/>
+		</exec>
+	</target>
+
+	<target name="copy-dependencies" depends="maven-build">
+		<!-- OSGi bundles pattern -->
+		<mkdir dir="${dist}/extension/bundles"/>
+
+		<!-- Copy json-io as OSGi bundle -->
+		<copy file="${temp}/dependency/com/cedarsoftware/json-io/4.88.0/json-io-4.88.0.jar"
+			  tofile="${dist}/extension/bundles/com.cedarsoftware.json-io-4.88.0.jar" />
+
+		<!-- Copy java-util as OSGi bundle -->
+		<copy file="${temp}/dependency/com/cedarsoftware/java-util/4.88.0/java-util-4.88.0.jar"
+			  tofile="${dist}/extension/bundles/com.cedarsoftware.java-util-4.88.0.jar" />
+
+		<!-- Copy the extension JAR as OSGi bundle -->
+		<copy file="source/java/target/${mvnArtifactId}-${bundleversion}.jar"
+			  tofile="${dist}/extension/bundles/org.lucee.extension.toon-${bundleversion}.jar" />
+	</target>
+
+	<target name="createManifest" depends="copy-dependencies" description="create MANIFEST.MF file">
+		<tstamp>
+			<format property="NOW" pattern="yyyy-MM-dd HH:mm:ss" />
+		</tstamp>
+		<mkdir dir="${dist}/extension/META-INF"/>
+		<echo file="${dist}/extension/META-INF/MANIFEST.MF">Manifest-Version: 1.0
+Built-Date: ${NOW}
+version: "${bundleversion}"
+id: "${id}"
+name: "${label}"
+description: "${description}"
+lucee-core-version: "${luceeCoreVersion}"
+release-type: ${releaseType}
+start-bundles: false
+</echo>
+	</target>
+
+	<target name="dist" depends="createManifest" description="generate the distribution">
+		<!-- copy the logo -->
+		<copy todir="${dist}/extension/META-INF">
+			<fileset dir="${srcImg}/">
+				<include name="logo.png"/>
+			</fileset>
+		</copy>
+
+		<!-- copy the fld -->
+		<mkdir dir="${dist}/extension/flds"/>
+		<copy file="${srcFld}/toon.fldx" tofile="${dist}/extension/flds/toon.fldx" />
+		<replaceregexp
+			file="${dist}/extension/flds/toon.fldx"
+			match="\{mvnGroupId\}"
+			replace="${mvnGroupId}"
+			byline="true"/>
+		<replaceregexp
+			file="${dist}/extension/flds/toon.fldx"
+			match="\{mvnArtifactId\}"
+			replace="${mvnArtifactId}"
+			byline="true"/>
+		<replaceregexp
+			file="${dist}/extension/flds/toon.fldx"
+			match="\{mvnVersion\}"
+			replace="${mvnVersion}"
+			byline="true"/>
+
+		<!-- Zip everything -->
+		<zip destfile="${dist}/${filename}-${bundleversion}.lex">
+			<zipfileset dir="${dist}/extension"/>
+		</zip>
+	</target>
+
+	<target name="clean" depends="dist" description="clean up">
+	</target>
+</project>

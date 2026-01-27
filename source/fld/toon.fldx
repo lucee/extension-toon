@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE func-lib PUBLIC "-//Lucee//DTD CFML Function Library 1.0//EN"
+	"dtd/web-cfmfunctionlibrary_1_0.dtd">
+<func-lib>
+	<flib-version>1.0</flib-version>
+	<short-name>toon</short-name>
+	<uri>http://toon.lucee.org</uri>
+	<display-name>TOON Extension</display-name>
+	<description>TOON (Token-Oriented Object Notation) serialization - LLM-optimized format with ~40-50% fewer tokens than JSON.</description>
+
+	<!-- SerializeTOON -->
+	<function>
+		<name>SerializeTOON</name>
+		<class bundle-name="org.lucee.extension.toon" bundle-version="{mvnVersion}">org.lucee.extension.toon.SerializeTOON</class>
+		<description>Serialize CFML data to TOON (Token-Oriented Object Notation) format. TOON is an LLM-optimized format that uses ~40-50% fewer tokens than JSON. See https://toonformat.dev for specification.</description>
+		<argument>
+			<name>var</name>
+			<type>any</type>
+			<required>Yes</required>
+			<description>The CFML data to serialize (struct, array, or any value).</description>
+		</argument>
+		<argument>
+			<name>options</name>
+			<type>struct</type>
+			<required>No</required>
+			<description>Optional struct with serialization options. Supported keys: cycleSupport (boolean, default true - set false for ~35-40% faster on simple data), prettyPrint (boolean, default false).</description>
+		</argument>
+		<return>
+			<type>string</type>
+			<description>TOON formatted string.</description>
+		</return>
+	</function>
+
+	<!-- DeserializeTOON -->
+	<function>
+		<name>DeserializeTOON</name>
+		<class bundle-name="org.lucee.extension.toon" bundle-version="{mvnVersion}">org.lucee.extension.toon.DeserializeTOON</class>
+		<description>Deserialize TOON (Token-Oriented Object Notation) to CFML data. Source can be TOON string content or a file path. See https://toonformat.dev for specification.</description>
+		<argument>
+			<name>source</name>
+			<type>string</type>
+			<required>Yes</required>
+			<description>TOON string content to parse, or a file path to read TOON from.</description>
+		</argument>
+		<argument>
+			<name>options</name>
+			<type>struct</type>
+			<required>No</required>
+			<description>Optional struct with deserialization options. Supported keys: charset (string, default UTF-8 - used when reading from file).</description>
+		</argument>
+		<return>
+			<type>any</type>
+			<description>Deserialized CFML data (struct, array, string, number, boolean, or empty string for null).</description>
+		</return>
+	</function>
+
+</func-lib>
